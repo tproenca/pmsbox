@@ -1,2 +1,4 @@
 language: bash
 script: sudo make
+before_install:
+  - sudo apt-get install debootstrap xz-utils qemu-user-static make -y
