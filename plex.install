@@ -1,0 +1,4 @@
+wget -O - http://dev2day.de/pms/dev2day-pms.gpg.key | apt-key add -
+echo "deb http://dev2day.de/pms/ jessie main" > /etc/apt/sources.list.d/pms.list
+apt-get update
+apt-get install libexpat1 plexmediaserver -y --force-yes

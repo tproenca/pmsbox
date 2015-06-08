@@ -1,0 +1,72 @@
+#!/usr/bin/env bash
+
+set -e
+
+if [ "$#" -ne 2 ]; then
+	echo "Usage: $0 DIST DIST_URL"
+	exit 1
+fi
+
+DIST=$1
+DIST_URL=$2
+
+echo "Running postinstall script..."
+
+# Sets the hostname
+echo "pmsbox" > /etc/hostname
+
+# Set the locale
+locale-gen en_US.UTF-8
+
+# Set timezone
+dpkg-reconfigure -f noninteractive tzdata
+
+# Set the keyboard
+cat << EOF > /etc/default/keyboard
+XKBMODEL="pc105"
+XKBLAYOUT="us"
+XKBVARIANT=""
+XKBOPTIONS=""
+EOF
+
+# Set root password
+echo "root:odroid" | chpasswd
+
+# Initialize /etc/apt/sources.list
+cat << EOF > /etc/apt/sources.list
+deb $DIST_URL $DIST main universe restricted
+deb-src $DIST_URL $DIST main universe restricted
+
+deb $DIST_URL $DIST-updates main universe restricted
+deb-src $DIST_URL $DIST-updates main universe restricted
+
+deb $DIST_URL $DIST-backports main restricted
+deb-src $DIST_URL $DIST-backports main restricted
+
+deb $DIST_URL $DIST-security main restricted
+deb-src $DIST_URL $DIST-security main restricted
+deb $DIST_URL $DIST-security universe
+deb-src $DIST_URL $DIST-security universe
+deb $DIST_URL $DIST-security multiverse  
+deb-src $DIST_URL $DIST-security multiverse
+EOF
+
+# Setup the loopback interface
+cat << EOF > /etc/network/interfaces.d/lo
+auto lo
+iface lo inet loopback
+EOF
+
+# Setup ethernet as DHCP
+cat << EOF > /etc/network/interfaces.d/eth0
+auto eth0
+iface eth0 inet dhcp
+EOF
+
+# Enable the Serial console
+cat << EOF > /etc/init/ttyS0.conf
+start on stopped rc or RUNLEVEL=[12345]
+stop on runlevel [!12345]
+respawn
+exec /sbin/getty -L 115200 ttyS0 vt102
+EOF

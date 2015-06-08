@@ -1,0 +1,20 @@
+#!/usr/bin/env bash
+
+set -e
+
+# Update repositories information
+apt-get update
+
+# Prevent apt-get from starting services
+echo "no-triggers" > /etc/dpkg/dpkg.cfg.d/custom
+
+# Run the install scripts
+find / -maxdepth 1 -name '*install' | sort | while read i; do
+	/bin/sh ${i}
+done
+
+# Re-enable services to start
+rm /etc/dpkg/dpkg.cfg.d/custom
+
+# Cleanup
+apt-get clean

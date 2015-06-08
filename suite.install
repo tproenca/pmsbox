@@ -1,0 +1,86 @@
+# Installs Sickrage
+apt-get install python-cheetah unrar python-pip python-dev git-core libssl-dev -y
+update-ca-certificates
+pip install pyopenssl==0.13.1
+git clone --depth 1 http://github.com/SiCKRAGETV/SickRage.git /opt/sickrage
+useradd -d /var/lib/sickrage -s /bin/bash -g nogroup sickrage
+chown sickrage:nogroup -R /opt/sickrage
+cp /opt/sickrage/runscripts/init.ubuntu /etc/init.d/sickrage
+cat << EOF > /etc/default/sickrage
+SR_USER=sickrage
+SR_HOME=/opt/sickrage
+SR_DATA=/var/lib/sickrage
+SR_PIDFILE=/var/run/sickrage/sickrage.pid
+EOF
+chmod +x /etc/init.d/sickrage
+update-rc.d sickrage defaults
+
+# Installs Couchpotato
+git clone --depth 1 https://github.com/RuudBurger/CouchPotatoServer /opt/couchpotato
+useradd -d /var/lib/couchpotato -s /bin/bash -g nogroup couchpotato
+chown couchpotato:nogroup -R /opt/couchpotato
+cp /opt/couchpotato/init/ubuntu /etc/init.d/couchpotato
+cat << EOF > /etc/default/couchpotato
+CP_USER=couchpotato
+CP_HOME=/opt/couchpotato
+CP_DATA=/var/lib/couchpotato
+CP_PIDFILE=/var/run/couchpotato/couchpotato.pid
+EOF
+chmod +x /etc/init.d/couchpotato
+update-rc.d couchpotato defaults
+
+# Installs Transmission torrent downloader
+apt-get install transmission-daemon -y
+sed -i s/"\"rpc-authentication-required\": true"/"\"rpc-authentication-required\": false"/g /var/lib/transmission-daemon/info/settings.json
+sed -i s/"\"rpc-whitelist-enabled\": true"/"\"rpc-whitelist-enabled\": false"/g /var/lib/transmission-daemon/info/settings.json
+chmod +x /etc/init.d/transmission-daemon
+update-rc.d transmission-daemon defaults
+
+# Installs NZBGet nzb downloader
+apt-get install unrar nzbget -y
+useradd -d /var/lib/nzbget -s /bin/bash -g nogroup nzbget
+cp /usr/share/nzbget/webui/nzbget.conf /etc/nzbget.conf
+sed -i s_"MainDir=~/downloads"_"MainDir=/var/lib/nzbget/downloads"_g /etc/nzbget.conf
+sed -i s/"ControlIP=127.0.0.1"/"ControlIP=0.0.0.0"/g /etc/nzbget.conf
+sed -i s/"ControlUsername=nzbget"/"ControlUsername="/g /etc/nzbget.conf
+sed -i s/"ControlPassword=tegbzn6789"/"ControlPassword="/g /etc/nzbget.conf
+cat << EOF > /etc/init.d/nzbget
+#!/bin/sh
+### BEGIN INIT INFO
+# Provides:          nzbget
+# Required-Start:    $local_fs $network $remote_fs
+# Required-Stop:     $local_fs $network $remote_fs
+# Should-Start:      $NetworkManager
+# Should-Stop:       $NetworkManager
+# Default-Start:     2 3 4 5
+# Default-Stop:      0 1 6
+# Short-Description: starts instance of NZBGet
+# Description:       starts instance of NZBGet using start-stop-daemon
+### END INIT INFO
+ 
+# Source init functions
+. /lib/lsb/init-functions
+# Start/stop the NZBget daemon.
+#
+case "\$1" in
+start)   log_daemon_msg "Starting nzb daemon" "nzbget"
+/usr/bin/nzbget -D
+;;
+stop)   log_daemon_msg "Stopping nzb daemon" "nzbget"
+/usr/bin/nzbget -Q
+;;
+restart)
+\$0 stop
+\$0 start
+;;
+*)   echo "Usage: $0 start|stop|restart"
+exit 1
+;;
+esac
+exit 0
+EOF
+chmod +x /etc/init.d/nzbget
+update-rc.d nzbget defaults
+
+# Installs Subliminal subtitle downloader
+pip install --upgrade https://github.com/Diaoul/subliminal/tarball/master

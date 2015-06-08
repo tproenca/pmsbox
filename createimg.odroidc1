@@ -1,0 +1,103 @@
+#!/bin/bash -v
+
+set -e
+
+if [ "$#" -ne 3 ]; then
+	echo "Usage: $0 ROOTFS_DIR TARGET_DIR IMAGE_FILE"
+	exit 1
+fi
+
+ROOTFS_DIR=$1
+TARGET_DIR=$2
+IMAGE_FILE=$3
+
+# Create a image with 4096 1Mbyte blocks (1Gbyte image)
+dd if=/dev/zero of=${IMAGE_FILE} bs=1M count=2048
+
+# Create the two needed partitions, one fat32 for kernel+initramfs+boot script and another ext4 for the OS
+fdisk ${IMAGE_FILE} << EOF >> /dev/null
+n
+p
+1
+
++128M
+n
+p
+2
+
+
+w
+EOF
+sync
+
+
+# Formatting and setting up partitions, setup loopback, change the UUID and disable journaling.
+losetup /dev/loop0 ${IMAGE_FILE}
+partprobe /dev/loop0
+mkfs.vfat -n boot /dev/loop0p1
+mkfs.ext4 -L rootfs /dev/loop0p2
+tune2fs /dev/loop0p2 -U e139ce78-9841-40fe-8823-96a304a09859
+tune2fs -O ^has_journal /dev/loop0p2
+
+# Download u-boot c1 binaries if does not exists.
+if [ ! -f bl1.bin.hardkernel ]; then
+    wget https://raw.githubusercontent.com/mdrjr/c1_uboot_binaries/master/bl1.bin.hardkernel
+fi
+
+# Download u-boot if does not exists.
+if [ ! -f u-boot.bin ]; then
+    wget https://raw.githubusercontent.com/mdrjr/c1_uboot_binaries/master/u-boot.bin
+fi
+
+# Append the U-Boot and Kernel for C1 to the image.
+dd if=bl1.bin.hardkernel of=/dev/loop0 bs=1 count=442
+dd if=bl1.bin.hardkernel of=/dev/loop0 bs=512 skip=1 seek=1
+dd if=u-boot.bin of=/dev/loop0 bs=512 seek=64
+sync
+
+# Mount the system partition
+mkdir -p ${TARGET_DIR}
+mount /dev/loop0p2 target
+
+# Copy rootfs dir to TARGET_DIR
+rsync --quiet --archive --devices --specials --hard-links --acls --xattrs --sparse --exclude '/boot/' --exclude '/media/' ${ROOTFS_DIR}/* ${TARGET_DIR}/
+
+# Create empty directoris for /boot and /media/boot
+mkdir -p ${TARGET_DIR}/boot
+mkdir -p ${TARGET_DIR}/media/boot
+
+# Mount /dev/loop0p1
+mount /dev/loop0p1 ${TARGET_DIR}/media/boot
+
+# Bind proc, dev, sys to TARGET_DIR
+mount -o bind /proc ${TARGET_DIR}/proc
+mount -o bind /dev ${TARGET_DIR}/dev
+mount -o bind /sys ${TARGET_DIR}/sys
+
+# Install the kernel, initram and boot.ini to the TARGET_DIR
+chroot ${TARGET_DIR} /bin/sh << EOF
+apt-key adv --keyserver keyserver.ubuntu.com --recv-keys AB19BAC9
+echo "deb http://deb.odroid.in/c1/ trusty main" > /etc/apt/sources.list.d/odroid.list
+echo "deb http://deb.odroid.in/ trusty main" >> /etc/apt/sources.list.d/odroid.list
+apt-get update
+apt-get install linux-image-c1 bootini -y
+cp /boot/uImage* /media/boot/uImage
+apt-get clean
+EOF
+
+# Cleanup /root and /tmp directories
+rm -rf ${TARGET_DIR}/root
+rm -rf ${TARGET_DIR}/tmp
+mkdir -p ${TARGET_DIR}/root
+mkdir -p ${TARGET_DIR}/tmp
+
+# Unbind proc, dev, sys
+umount ${TARGET_DIR}/proc
+umount ${TARGET_DIR}/dev
+umount ${TARGET_DIR}/sys
+
+# Umount system image and free resources
+umount ${TARGET_DIR}/media/boot
+umount ${TARGET_DIR}
+sync
+losetup -d /dev/loop0
