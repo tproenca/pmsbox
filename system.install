@@ -1,5 +1,5 @@
 # Install ubuntu mininmal tools set
-apt-get install software-properties-common u-boot-tools isc-dhcp-client ubuntu-minimal ssh usbmount nfs-common -y --force-yes
+apt-get install software-properties-common u-boot-tools isc-dhcp-client ubuntu-minimal usbmount nfs-common -y --force-yes
 
 # Allow root login via ssh
-sed -i s/"PermitRootLogin without-password"/"PermitRootLogin yes"/g /etc/ssh/sshd_config
+#sed -i s/"PermitRootLogin without-password"/"PermitRootLogin yes"/g /etc/ssh/sshd_config
