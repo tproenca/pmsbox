@@ -1,4 +1,6 @@
 language: bash
+sudo: required
+dist: trusty
 script: sudo make
 before_install:
   - sudo apt-get update -qq
