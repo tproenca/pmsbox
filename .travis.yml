@@ -5,3 +5,12 @@ script: sudo make
 before_install:
   - sudo apt-get update -qq
   - sudo apt-get install -qq debootstrap xz-utils qemu-user-static make -y
+deploy:
+  provider: releases
+  api_key: "8f7d10843770927d5d370c7ef26caae5f1228de6"
+  file: 
+    - "dist/pmsbox-odroidc1_1.0.0.img.xz"
+    - "dist/pmsbox-suite-odroidc1_1.0.0.img.xz"
+  skip_cleanup: true
+  on:
+    tags: true
