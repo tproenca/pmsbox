@@ -6,7 +6,7 @@ before_install:
 - sudo apt-get update -qq
 - sudo apt-get install -qq debootstrap xz-utils qemu-user-static make -y
 before_deploy:
-- chmod -R 777 dist
+- sudo chmod -R 777 dist
 deploy:
   provider: releases
   api_key:
